@@ -2,7 +2,7 @@
 High performance javascript binary to hexa/decimal convertor
 
   This library will allow you to convert arbitrary length
-  binary data/buffer o it's string hexa/decimals representation
+  binary data/buffer to it's string hexa/decimals representation
   and vice-versa.
 
 =======
