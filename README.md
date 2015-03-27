@@ -5,6 +5,8 @@ High performance javascript binary stream data to hexa/decimal convertor
   binary stream data/buffer to it's string hexa/decimals representation
   and vice-versa.
 
+  For practical purposes, the data should be chunked in form of array of unsigned integer.
+
 =======
 
 This is a *very fast* javascript binary stream data to hexa/decimal convertor.
