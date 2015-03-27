@@ -1,8 +1,8 @@
 # bin2dec
-High performance javascript binary data to hexa/decimal convertor
+High performance javascript binary stream data to hexa/decimal convertor
 
   This library will allow you to convert arbitrary length
-  binary data/buffer to it's string hexa/decimals representation
+  binary stream data/buffer to it's string hexa/decimals representation
   and vice-versa.
 
 =======
