@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Buffer to Numbers test</title>
+<style>
+  hr { color:lightgray; }
+  .ta-r { text-align: right; }
+  .nowr { white-space: nowrap; }
+  .wron { white-space: wrap; }
+  .bgc { background-color: #abc; }
+  button { height:1.72em; }
+  button .bt2 { width:16px; height:20px; }
+</style>
+<script src="b2n.js"></script>
+<!-- link rel=stylesheet src="lib/bootstrap.css"></link -->
+<script>
+
+var s = '', i = 0, n = 0, dt = new Date();
+var LF = '\n', TAB = '\t', PREBR = '<pre><br>';
+
+
+function doEval(e) {
+  if (!e) return e;
+  var Log = e.parentNode.lastElementChild;
+  if (e.nodeName != 'INPUT')
+    while((e = e.previousElementSibling) != null)
+      if (e.nodeName == 'INPUT')
+        break;
+
+  //if (!e) return e;
+  var s = eval(e.value);
+  Log.innerHTML = s;
+}
+
+function ckEnter(ed) {
+  if (event.keyCode != 13) return;
+  while((ed = ed.nextElementSibling) != null)
+    if (ed.nodeName == 'BUTTON')
+      break;
+  if (!ed) return ed;
+  ed.click();
+}
+
+
+function dotesb2n(e) {
+  validdecdigits='0123456789';
+  var Log = e.parentNode.lastElementChild;
+  var ed = e;
+  if (ed.nodeName != 'INPUT')
+    while((ed = e.previousElementSibling) != null)
+      if (ed.nodeName == 'INPUT')
+        break;
+
+  var b = ed.value;
+  var Len1 = b.length - 1;
+  for (var i = Len1; i >= 0; i--)
+    if (validdecdigits.indexOf(b[i]) < 0)
+      b = b.substr(0, i) + b.substr(i + 1);
+  b >>>= 5;
+  b &= 1023;
+  if (!b) b = 1;
+  ed.value = b << 5;
+
+  var s = '', Len = b;
+  s += PREBR;
+
+  var A = [];
+  for (var i = 0; i < Len; i++)
+    A[i] = parseInt(Math.random() * 0x100000000);
+
+
+  var t0, t1;
+
+  t0 =  new Date().valueOf();
+  var hexs = _buftoHexs(A);
+  t1 =  new Date().valueOf();
+  var tm_hexs = t1 - t0;
+
+  t0 =  new Date().valueOf();
+  var decs = _buftoDecimals(A);
+  t1 =  new Date().valueOf();
+  var tm_decs = t1 - t0;
+
+
+  var e = A.toString().split(',');
+  var top = e.length - 1;
+  for (var i = 0; i < top; i++) if (+e[i] > 0) e[i] += ' * 2^(32*' + i +') + ';
+  if (+e[top] > 0) e[top] += ' * 2 ^(32*' + top +')';
+
+  e = e.join('');
+
+  var d = decs;
+  var bcd = '';
+  bcd += '### /* debug items (for unix bc): */' + LF;
+  bcd += 'tes77e = ' + e + LF;
+  bcd += 'tes77d = ' + d + LF;
+  bcd += 'tes77e' + LF;
+  bcd += '# n2a(tes77e)' + LF;
+  bcd += '# n2a(tes77d)' + LF;
+  bcd += 'print "result: ", tes77e == tes77d, "\\n"' + LF;
+  bcd += ' ###' + LF;
+ 
+  s += '<b>' + 'Size: ' + A.length * 32 + '-bits' + '</b>' + LF
+  s += 'A = [' + A + ']' + LF;
+
+  s += 'Hexs: ' + hexs + LF;
+  s += '<b>';
+  s += 'Decimals (length: ' + decs.length +', time: ' + tm_decs/1000 + '): ';
+  s += 'tes77d' + LF;
+  s += '</b>' + LF;
+  //s += decs + '</b>' + LF;
+  s += bcd;
+
+
+  Log.innerHTML = s;
+
+}
+
+
+</script>
+</head>
+<body>
+
+<div id=div1 class=nowr>
+eval1
+<input size=40 onkeypress="ckEnter(this);" value="Math.random() * 0x100000000 |0">
+<button onClick="doEval(this);">&nbsp;</button> |
+<input class=ta-r size=4 onkeypress="ckEnter(this);" value="188">-bits
+<button onClick="dotesb2n(this);">&nbsp;</button> |
+<br>
+<span id=span1></span>
+</div>
+<hr>
+
+<div id=div2>
+eval2
+<input size=40 value="A=[1231,4562,7893,10114,12135,14156,16177,18198,20219,222310]; _buftoDecimals(A);" onkeypress="ckEnter(this);">
+<button onClick="doEval(this);">&nbsp;</button> |
+<button onClick="doEval(this);">&nbsp;</button> |
+<br>
+<span id=span2></span>
+</div>
+<hr>
+
+<div id=div3>
+eval3
+<input size=40 "onkeypress="ckEnter(this);">
+<button onClick="doEval(this);">&nbsp;</button> |
+<button onClick="doEval(this);">&nbsp;</button> |
+<br>&nbsp;
+<span id=span3></span>
+</div>
+<hr>
+
+</body>
+</html>
