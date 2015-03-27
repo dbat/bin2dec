@@ -14,6 +14,7 @@ Please see the notes in source code for any question about algorithm and optimiz
   and vice-versa.
 
   functions:
+
     _buftoHexs(B);
 
       convert/translate binary data in buffer B (array of 32-bit integer)
