@@ -443,21 +443,28 @@ var _buftoDecimals = function (B) {
     //  that RSA crypto at most use only 2048K (0.25 sec in IE),
     //  it is still functionally OK.
     //
+    //  firefox, about:config, dom.min_background_timeout_value
+    //                         dom.max_script_run_time
+    //  chrome, chrome://flags
+    //  opera, opera:config
+    //
     // update: trimmed even further, gosh!
     //         reduce repeated array elements write-access
     //         IE may be dog slowest, but I often got performance
     //         enhancement like this by examining it's nice profiler.
-    // (final result below)
+    // (final result below, under PC: i5-3570K-underclock-2.4GHz)
     //
     //   bits / time (seconds)
     //          IE9        Opera-12.16  Firefox-4.01  Chrome-38
+    // ---------------------------------------------------------------
     //   32KB:  too-long!  26.8         23.2          9.8
     //   16KB:  54.3        5.0          4.4          2.00
     //    8KB:   7.4        1.0          0.9          0.4
     //    4KB:   1.2        0.24         0.23         0.1
     //    2KB    0.2        0.06         0.06         0.0
-    //
     // ---------------------------------------------------------------
+    //   64KB   no-bother  not-tested   not-tested   55.2
+    //
     // I guess I would better stop now and do my (abandoned) real job.
 
     // var top10 = top * 3.2 |0;
@@ -524,9 +531,10 @@ var _buftoDecimals = function (B) {
 
   __init();
   if (top < 1) return B ? '' + B[0] : '0';
-  //if (top > 256) return 'sorry, too much'; // over 8Kbits
-  //if (top > 512) return 'sorry, too much'; // over 16Kbits
-  if (top > 1024) return 'sorry, too much'; // over 32Kbits
+  // if (top > 256) return 'sorry, too much'; // over 8Kbits
+  // if (top > 512) return 'sorry, too much'; // over 16Kbits
+  // if (top > 1024) return 'sorry, too much'; // over 32Kbits
+  // if (top > 2048) return 'sorry, too much'; // over 64Kbits
   var itr = 0;
   while (top > 0)
     rets[itr++] = __bin2dec();

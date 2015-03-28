@@ -57,9 +57,19 @@ function dotesb2n(e) {
     if (validdecdigits.indexOf(b[i]) < 0)
       b = b.substr(0, i) + b.substr(i + 1);
   b >>>= 5;
-  b &= 1023;
+  b &= 2047;
   if (!b) b = 1;
   ed.value = b << 5;
+  if (+(ed.value) > 16000) {
+    //var msie = 'Microsoft Internet Explorer';
+    var sl = '';
+    sl += navigator.appName + ':' + LF + LF;
+    sl += 'Calculating ' + ed.value + '-bits wide data may take a while.' +LF;
+    sl += 'Browser may render irresponsive, and you might get asked to continue.';
+    Log.innerText = sl;
+    //if (navigator.appName == msie)
+      alert(sl);
+  }
 
   var s = '', Len = b;
   s += PREBR;
@@ -75,6 +85,8 @@ function dotesb2n(e) {
   var hexs = _buftoHexs(A);
   t1 =  new Date().valueOf();
   var tm_hexs = t1 - t0;
+
+
 
   t0 =  new Date().valueOf();
   var decs = _buftoDecimals(A);
