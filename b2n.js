@@ -67,11 +67,14 @@ var _buftoDecimals = function (B) {
 
   var POSITIVIZE = [0, 0x100000000];
   var zeroes = [0];
-  var rcx2r = [[34078,20971], [60293,47185],
-    [20971,7864], [47185,34078], [7864,60293]];
+  var rcx32r = [[34078+0,20971], [60293,47185],
+    [20971+0,7864], [47185+0,34078], [7864,60293]];
+  var rcx64r = [[0xa3d,0xa3d7], [0xd70a,0x70a3],
+    [0xa3d7,0x3d70], [0x70a3+0,0xa3d], [0x3d70+0,0xd70a]];
 
   function xRCPX(n, r, m)
-    {  m = m |0; return _fxMul16r(n, rcx2r[m][0], rcx2r[m][1], r); }
+    //{  m = m |0; return _fxMul16r(n, rcx32r[m][0], rcx32r[m][1], r); }
+    {  m = m |0; return _fxMul16r(n, rcx64r[m][0], rcx64r[m][1], r); }
 
   function _fxDouble(A, top) {
     var a = 0, ovr = 0, ovs = 0, i = 0;
@@ -115,36 +118,82 @@ var _buftoDecimals = function (B) {
 
   function _fxbinroll5(A, top1, y) {
     //if (y < 1) A = [];
-    if (y < 2 || top < 5) return A;
+    if (y < 2 || top1 < 5) return A;
     var C = _fxbClone(A, top1, 0);
     var i = 0, j = 0, r = y;
     var k5 = top1 - 4;
-    var a1 = 0, c1 = 0;
+    var rsum = 0, lsum = 0;
 
+////top = length - 1, correlations:
+////
+//// // top / 5 + 1 is identical with (length + 4) / 5;
+//// // top % 5 + 1 is identical with based-1's (length + 4) % 5;
+//// // => top % 5 + 1 = [1,2,3,4,5]  whereas (length + 4) % 5 = [0,1,2,3,4]
+//// // 
+//// // given: length % 5 = (length +5 +5 +5..) % 5
+//// // since: top % 5 is.. (length - 1) % 5,
+//// //                    or (length +5 -1) %5,
+//// //                      or (length + 4) % 5
+//// // then:  top % 5 is identical with (length + 4) % 5;
+//// //
+
+    // thread-0
     if (y > 2) {
-      k5 %= 5;
-      if (!k5) k5 = 5;
-      var blocks = top1 / 5 + 1 |0; // 1-based
-      r %= blocks;
-      if (r)
-        k5 += (blocks - r) * 5;
-      for (var i = k5; i <= top1; i++) {
-        c1 = C[i];
+      // this formula taken rounds/rolls as modulo of blocks
+      // result might be inapropiate after rounds pass over length
+      //
+      // k5 %= 5;
+      // if (!k5) k5 = 5; // important!
+      // var blocks = top1 / 5 + 1 |0; // 1-based
+      // r %= blocks;
+      // if (r)
+      //   k5 += (blocks - r) * 5; // what the heck is this k5 doing?
+      //                           // so.. convoluted :(
+      // 
+      // // this is stupid, k5 is nothing more than length minus rolls * 5
+      // // k5 = (top + 1) - (y - 1) * 5 // rounds is 1-based
+      // // or k5 = length - y * 5 + 5
+      // //
+      // // oh, i remember, it is designed to support for rolls > length
+      // // if rolls more than length, k5 will be negative using that formula
+      // // must be restricted with max value as : top1 div 5 * 5
+      // // or (if zero or negative) k5 = top1 % 5 + 1
+      // //
+      // // actually for this case, rolls *always* less than length
+      k5 = top1 + 1 - y * 5 + 5;
+      if (k5 < 1) k5 = top1 % 5 + 1
+
+      for (var i = k5; i <= top1 - 5; i++) {
+        lsum = C[i];
         for (j = i + 5; j <= top1; j += 5)
-          c1 += C[j];
-        C[i] = c1;
+          lsum += C[j];
+        C[i] = lsum;
       }
     }
-    for (i = top1; i >= 0; i--) {
+    //  Illustration:
+    //  R|roll|rollroll|roll|roll|roll|roll|idx
+    //    --------------------------------------
+    //  1.                gfedcba9876543210|
+    //  2.           gfedcba9876543210     |
+    //  3.      gfedcba9876543210          |
+    //  4. gfedcba9876543210               |
+    //    --------------------------------------
+    //          gfedcgfedcgfedcba9876543210|
+    //               ba987ba9876543210     |
+    //                    6543210          |
+    // thread-1
+    for (i = top1; i >= 5; i--) {
       r = y;
-      a1 = A[i];
+      rsum = A[i];
       for (j = i - 5; j >= 0; j -= 5) {
         if (--r < 1) break;
-        a1 += A[j];
+        rsum += A[j];
       }
-      A[i] = a1;
+      A[i] = rsum;
     }
     var top2 = top1;
+    
+    // may run only after both threads completed
     for (i = k5; i <= top1; i++)
       // note for index [i + top1]:
       // safe only for this case, since rolls always intersects
@@ -164,14 +213,15 @@ var _buftoDecimals = function (B) {
     var i = 0, j = 0, k = top %5;
 
     var top1 = top + 1, r = k;
-    var p = top < 4 ? top : 4;
+    var iter = top < 4 ? top : 4;
 
-    for (j = 0; j <= p; j++) {
-      q[1] = 0;
+    // iteration could be run in separate thread
+    for (j = 0; j <= iter; j++) {
 
       //var D = B.slice(0);
       var D = _fxbClone(B, top)
 
+      q[1] = 0;
       for (i = 0; i <= top; i++) {
         q = xRCPX(D[i], q[1], r);
         D[i] = q[0];
@@ -184,17 +234,21 @@ var _buftoDecimals = function (B) {
     }
 
     var rollcount = top / 5 |0;
-    var Lena = A.length;
-    for (j = 0; j < Lena; j++) {
-      r = rollcount + (j <= k);
-      _fxbinroll5(A[j], top1, r);
+    var r1 = 0;
+
+    // iteration could be run in separate thread
+    for (j = 0; j <= iter; j++) {
+      r1 = rollcount + (j <= k); // efectively make it 1-based rolls
+      _fxbinroll5(A[j], top1, r1);
       _unshiftn(A[j], j, A[j].length - 1);
     }
 
-    if (!k || k & 2)
+    //if (!k || k & 2) // 32r: 0,2,3
+    if (k > 2) // 64r: 3,4
       _fxDouble(B, top);
 
-    for (j = 0; j < Lena; j++)
+
+    for (j = 0; j <= iter; j++)
       _fxbAddEx(B, A[j], B.length -1, A[j].length -1);
 
     A = [];
@@ -335,7 +389,9 @@ var _buftoDecimals = function (B) {
   }
 
   // continuous multiplication with previous reminder
-  function _fxMul32r(a, b, r) { return _fxMul16r(a, b& 0xffff, b>>>16, r); }
+  function _fxMul32r(a, b, r)
+    { return _fxMul16r(a, b& 0xffff, b>>>16, r); }
+
   function _fxMul16r(n, eLo, eHi, r) {
     var xLo = n * eLo, xHi = n * eHi, ovr = 0;
     var a0 = xLo & 0xffffffff, a1 = xHi << 16;
@@ -391,11 +447,12 @@ var _buftoDecimals = function (B) {
   }
 
   /*********** ENTRY POINT *******************/
-  var top = 0;
-  var strn = [], rets = [];
+  var top = 0; 
+  var _A0 = [], strn = [], rets = [];
   //var mulfn = _fxbMulRcpZ;
 
   function __init() {
+    _A0 = B;
     B = B.slice(0); // release original B;
     top = B.length;
 
@@ -465,6 +522,9 @@ var _buftoDecimals = function (B) {
     // ---------------------------------------------------------------
     //   64KB   no-bother  not-tested   not-tested   55.2
     //
+    //   note: tested in firefox-9.0.1, 64KB consumes 88.1 seconds.
+    //         32KB: 15.1 seconds, 16KB: 2.8s, 8KB: 0.64s, 4KB: 0.13s
+    //
     // I guess I would better stop now and do my (abandoned) real job.
 
     // var top10 = top * 3.2 |0;
@@ -503,7 +563,8 @@ var _buftoDecimals = function (B) {
 
     D = D.slice(top + 1);
 
-    _fxbShrr(D, 5, top);
+    //_fxbShrr(D, 5, top); // 32r
+    _fxbShrr(D, 6, top); // 64r
 
     C = B.slice(0);
     B = D.slice(0);
@@ -517,8 +578,15 @@ var _buftoDecimals = function (B) {
     D = [];
 
     r |= 0;
-    if (r < 0) _fxbDec1(B, top);
-    else if (r >= 100) _fxbInc1(B, top);
+    if (r < 0) {
+      _fxbDec1(B, top);
+      console.log('i:'+ itr + '; r=' + r + '; A = [' + _A0 + '];');
+    }
+    else
+      if (r >= 100) {
+        _fxbInc1(B, top);
+      console.log('i:'+ itr + '; r=' + r + '; A = [' + _A0 + '];');
+      }
 
     if (B[top] == 0) {
       B.pop();
@@ -598,9 +666,10 @@ var _numstoBuf = function(NumberStr) { // returns B;
 
     DecimalStr = validDecimalStr(DecimalStr);
     var B = [0], n = +DecimalStr;
-    if (n < CAP53) {
-      B[0] = parseInt(n % CAP32);
-      B[1] = (n / CAP32) | 0;
+    if (n < 0x20000000000000) { //CAP53
+      B[0] = parseInt(n % 0x100000000); //CAP32
+
+      B[1] = (n / 0x100000000) | 0; //CAP32
       return B;
     }
     var decs = DecimalStr.split('');
