@@ -10,7 +10,6 @@ High performance javascript binary stream data to hexa/decimal convertor
 =======
 
 This is a *very fast* javascript binary stream data to hexa/decimal convertor.
-In fact, I would like to challenge everyone (in a friendly competition/manner) to produce library faster than this.
 
 Please see the notes in source code for any question about algorithm and optimization used.
 
